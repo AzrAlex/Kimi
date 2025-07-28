@@ -201,7 +201,7 @@ class StockifyAPITester:
             'quantite_min': '15'
         }
         
-        success, result = self.make_request('PUT', f'articles/{self.test_article_id}', data=update_data, token=self.admin_token)
+        success, result = self.make_request('PUT', f'articles/{self.test_article_id}', data=update_data, token=self.admin_token, form_data=True)
         
         if success and 'nom' in result and result['nom'] == 'Updated Test Article':
             return self.log_test("Update Article", True)
