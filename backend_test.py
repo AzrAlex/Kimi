@@ -291,7 +291,7 @@ class StockifyAPITester:
             'quantite_min': '1'
         }
         
-        success, result = self.make_request('POST', 'articles', data=article_data, token=self.user_token, expected_status=403)
+        success, result = self.make_request('POST', 'articles', data=article_data, token=self.user_token, expected_status=403, form_data=True)
         return self.log_test("User Cannot Create Article (should fail)", success)
 
     def test_delete_article(self):
