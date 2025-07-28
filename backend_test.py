@@ -276,7 +276,7 @@ class StockifyAPITester:
 
     def test_unauthorized_access(self):
         """Test accessing admin endpoints without proper token"""
-        success, result = self.make_request('POST', 'articles', data={'nom': 'test'}, expected_status=401)
+        success, result = self.make_request('POST', 'articles', data={'nom': 'test'}, expected_status=401, form_data=True)
         return self.log_test("Unauthorized Access (should fail)", success)
 
     def test_user_cannot_create_article(self):
