@@ -157,7 +157,7 @@ class StockifyAPITester:
             'date_expiration': (datetime.now() + timedelta(days=30)).isoformat()
         }
         
-        success, result = self.make_request('POST', 'articles', data=article_data, token=self.admin_token, expected_status=200)
+        success, result = self.make_request('POST', 'articles', data=article_data, token=self.admin_token, expected_status=200, form_data=True)
         
         if success and 'id' in result:
             self.test_article_id = result['id']
