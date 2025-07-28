@@ -940,6 +940,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -961,6 +962,15 @@ function App() {
     localStorage.removeItem('user');
     setUser(null);
     setActiveTab('dashboard');
+    setSidebarOpen(false);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
   };
 
   if (loading) {
@@ -979,30 +989,40 @@ function App() {
         return <ArticlesList user={user} />;
       case 'demandes':
         return <DemandesList user={user} />;
+      case 'mouvements':
+        return <MouvementsList user={user} />;
+      case 'rapports':
+        return <RapportsList user={user} />;
       default:
         return <Dashboard user={user} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            📦 Stockify
-          </h1>
-          <p className="text-gray-600">Système de gestion de stock intelligent</p>
-        </header>
-        
-        <Navigation 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          user={user} 
-          onLogout={handleLogout} 
-        />
-        
-        <main>
-          {renderContent()}
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <Navbar 
+        user={user} 
+        onLogout={handleLogout} 
+        onToggleSidebar={toggleSidebar}
+        sidebarOpen={sidebarOpen}
+      />
+      
+      {/* Sidebar */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        user={user} 
+        isOpen={sidebarOpen}
+        onClose={closeSidebar}
+      />
+      
+      {/* Main Content */}
+      <div className="md:ml-64 pt-16">
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>
