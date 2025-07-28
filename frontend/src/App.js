@@ -772,6 +772,276 @@ const DemandesList = ({ user }) => {
   );
 };
 
+const MouvementsList = ({ user }) => {
+  const [mouvements, setMouvements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMouvements();
+  }, []);
+
+  const fetchMouvements = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API}/mouvements`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMouvements(response.data);
+    } catch (error) {
+      console.error('Error fetching mouvements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-800">Mouvements de Stock</h1>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">Total: {mouvements.length} mouvements</span>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Article
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Quantité
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Utilisateur
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Raison
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {mouvements.map((mouvement, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(mouvement.created_at).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {mouvement.article_nom || 'Article supprimé'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      mouvement.type === 'entree' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {mouvement.type === 'entree' ? '⬇️ Entrée' : '⬆️ Sortie'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={`font-medium ${
+                      mouvement.type === 'entree' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {mouvement.type === 'entree' ? '+' : '-'}{mouvement.quantite}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {mouvement.user_nom || 'Utilisateur supprimé'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {mouvement.raison}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {mouvements.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📊</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun mouvement</h3>
+              <p className="text-gray-500">Les mouvements de stock apparaîtront ici.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RapportsList = ({ user }) => {
+  const [chartData, setChartData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchChartData();
+  }, []);
+
+  const fetchChartData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API}/dashboard/charts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setChartData(response.data);
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-800">Rapports & Analyses</h1>
+        <div className="flex space-x-2">
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            📊 Exporter PDF
+          </button>
+          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            📈 Exporter Excel
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Articles par catégorie */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">📊</span>
+            Articles par Catégorie
+          </h3>
+          <div className="space-y-3">
+            {chartData?.articles_by_category && Object.entries(chartData.articles_by_category).map(([category, count]) => (
+              <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center">
+                  <div className="w-4 h-4 bg-blue-500 rounded mr-3"></div>
+                  <span className="font-medium">Catégorie {category}</span>
+                </div>
+                <span className="text-lg font-bold text-blue-600">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Demandes par statut */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">📋</span>
+            Demandes par Statut
+          </h3>
+          <div className="space-y-3">
+            {chartData?.demandes_by_status && Object.entries(chartData.demandes_by_status).map(([status, count]) => {
+              const colors = {
+                pending: 'bg-yellow-500',
+                approved: 'bg-green-500',
+                rejected: 'bg-red-500'
+              };
+              const labels = {
+                pending: 'En attente',
+                approved: 'Approuvées',
+                rejected: 'Rejetées'
+              };
+              
+              return (
+                <div key={status} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 ${colors[status]} rounded mr-3`}></div>
+                    <span className="font-medium">{labels[status]}</span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-700">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Niveaux de stock */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <span className="mr-2">📦</span>
+          Niveaux de Stock
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {chartData?.stock_levels?.map((article, index) => (
+            <div key={index} className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="font-medium text-gray-800 mb-2">{article.nom}</h4>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Stock actuel:</span>
+                <span className={`font-bold ${
+                  article.quantite <= article.quantite_min ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {article.quantite}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-1">
+                <span className="text-gray-600">Minimum:</span>
+                <span className="font-medium">{article.quantite_min}</span>
+              </div>
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      article.quantite <= article.quantite_min ? 'bg-red-500' : 'bg-green-500'
+                    }`}
+                    style={{
+                      width: `${Math.min((article.quantite / (article.quantite_min * 2)) * 100, 100)}%`
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Résumé des performances */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <span className="mr-2">🎯</span>
+          Résumé des Performances
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-4">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {chartData?.articles_by_category ? Object.values(chartData.articles_by_category).reduce((a, b) => a + b, 0) : 0}
+            </div>
+            <p className="text-gray-600">Articles totaux</p>
+          </div>
+          <div className="text-center p-4">
+            <div className="text-3xl font-bold text-green-600 mb-2">
+              {chartData?.demandes_by_status?.approved || 0}
+            </div>
+            <p className="text-gray-600">Demandes approuvées</p>
+          </div>
+          <div className="text-center p-4">
+            <div className="text-3xl font-bold text-yellow-600 mb-2">
+              {chartData?.demandes_by_status?.pending || 0}
+            </div>
+            <p className="text-gray-600">En attente</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Navbar Component
 const Navbar = ({ user, onLogout, onToggleSidebar, sidebarOpen }) => {
   return (
