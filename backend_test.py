@@ -44,7 +44,7 @@ class StockifyAPITester:
             print(f"❌ {name} - {details}")
         return success
 
-    def make_request(self, method, endpoint, data=None, files=None, token=None, expected_status=200):
+    def make_request(self, method, endpoint, data=None, files=None, token=None, expected_status=200, form_data=False):
         """Make HTTP request with proper headers"""
         url = f"{self.api_url}/{endpoint}"
         headers = {}
@@ -52,7 +52,8 @@ class StockifyAPITester:
         if token:
             headers['Authorization'] = f'Bearer {token}'
         
-        if data and not files:
+        # Handle different data types
+        if data and not files and not form_data:
             headers['Content-Type'] = 'application/json'
             data = json.dumps(data) if isinstance(data, dict) else data
 
@@ -60,12 +61,13 @@ class StockifyAPITester:
             if method == 'GET':
                 response = requests.get(url, headers=headers)
             elif method == 'POST':
-                if files:
+                if files or form_data:
+                    # For form data or file uploads, don't set Content-Type (let requests handle it)
                     response = requests.post(url, data=data, files=files, headers={k:v for k,v in headers.items() if k != 'Content-Type'})
                 else:
                     response = requests.post(url, data=data, headers=headers)
             elif method == 'PUT':
-                if files:
+                if files or form_data:
                     response = requests.put(url, data=data, files=files, headers={k:v for k,v in headers.items() if k != 'Content-Type'})
                 else:
                     response = requests.put(url, data=data, headers=headers)
