@@ -772,55 +772,166 @@ const DemandesList = ({ user }) => {
   );
 };
 
-// Navigation Component
-const Navigation = ({ activeTab, setActiveTab, user, onLogout }) => {
+// Navbar Component
+const Navbar = ({ user, onLogout, onToggleSidebar, sidebarOpen }) => {
+  return (
+    <nav className="bg-white shadow-lg border-b border-gray-200 fixed top-0 left-0 right-0 z-30">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            {/* Mobile menu button */}
+            <button
+              onClick={onToggleSidebar}
+              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <span className="sr-only">Ouvrir le menu</span>
+              {sidebarOpen ? (
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+            
+            {/* Logo */}
+            <div className="flex-shrink-0 flex items-center ml-4 md:ml-0">
+              <span className="text-2xl font-bold text-blue-600">📦</span>
+              <span className="ml-2 text-xl font-bold text-gray-800 hidden sm:block">Stockify</span>
+            </div>
+          </div>
+          
+          {/* Right side */}
+          <div className="flex items-center space-x-4">
+            {/* Notifications */}
+            <button className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-full">
+              <span className="sr-only">Notifications</span>
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM21 7v10c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V7c1.1 0 2-.9 2-2s.9-2 2-2h10c1.1 0 2 .9 2 2s-.9 2-2 2z" />
+              </svg>
+            </button>
+            
+            {/* User menu */}
+            <div className="relative flex items-center space-x-3">
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-medium text-gray-700">{user?.nom}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-medium text-sm">
+                    {user?.nom?.charAt(0)?.toUpperCase()}
+                  </span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="text-gray-400 hover:text-red-500 p-1"
+                  title="Déconnexion"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+// Sidebar Component
+const Sidebar = ({ activeTab, setActiveTab, user, isOpen, onClose }) => {
   const adminTabs = [
-    { id: 'dashboard', name: 'Tableau de bord', icon: '📊' },
-    { id: 'articles', name: 'Articles', icon: '📦' },
-    { id: 'demandes', name: 'Demandes', icon: '📋' },
+    { id: 'dashboard', name: 'Tableau de bord', icon: '📊', description: 'Vue d\'ensemble' },
+    { id: 'articles', name: 'Articles', icon: '📦', description: 'Gestion du stock' },
+    { id: 'demandes', name: 'Demandes', icon: '📋', description: 'Approbations' },
+    { id: 'mouvements', name: 'Mouvements', icon: '📈', description: 'Historique' },
+    { id: 'rapports', name: 'Rapports', icon: '📊', description: 'Analyses' },
   ];
 
   const userTabs = [
-    { id: 'dashboard', name: 'Tableau de bord', icon: '📊' },
-    { id: 'articles', name: 'Articles', icon: '📦' },
-    { id: 'demandes', name: 'Mes Demandes', icon: '📋' },
+    { id: 'dashboard', name: 'Tableau de bord', icon: '📊', description: 'Vue d\'ensemble' },
+    { id: 'articles', name: 'Articles', icon: '📦', description: 'Catalogue' },
+    { id: 'demandes', name: 'Mes Demandes', icon: '📋', description: 'Mes requêtes' },
   ];
 
   const tabs = user?.role === 'admin' ? adminTabs : userTabs;
 
   return (
-    <nav className="bg-white shadow-lg rounded-xl p-4 mb-6">
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-4">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.name}</span>
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            {user?.nom} ({user?.role})
-          </span>
-          <button
-            onClick={onLogout}
-            className="text-red-600 hover:text-red-800 text-sm"
-          >
-            Déconnexion
-          </button>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 md:hidden"
+          onClick={onClose}
+        ></div>
+      )}
+      
+      {/* Sidebar */}
+      <div className={`fixed top-16 left-0 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-25 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0`}>
+        <div className="flex flex-col h-full">
+          {/* Sidebar header */}
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Navigation</h2>
+          </div>
+          
+          {/* Navigation items */}
+          <nav className="flex-1 p-4 space-y-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  onClose(); // Close mobile menu on selection
+                }}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <span className="text-xl">{tab.icon}</span>
+                <div className="flex-1 text-left">
+                  <p className="font-medium">{tab.name}</p>
+                  <p className={`text-xs mt-0.5 ${
+                    activeTab === tab.id ? 'text-blue-100' : 'text-gray-500 group-hover:text-gray-600'
+                  }`}>
+                    {tab.description}
+                  </p>
+                </div>
+                {activeTab === tab.id && (
+                  <div className="w-1 h-8 bg-blue-200 rounded-full"></div>
+                )}
+              </button>
+            ))}
+          </nav>
+          
+          {/* Sidebar footer */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-bold">
+                  {user?.nom?.charAt(0)?.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-700">{user?.nom}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+              </div>
+              <div className={`h-3 w-3 rounded-full ${
+                user?.role === 'admin' ? 'bg-green-400' : 'bg-blue-400'
+              }`}></div>
+            </div>
+          </div>
         </div>
       </div>
-    </nav>
+    </>
   );
 };
 
