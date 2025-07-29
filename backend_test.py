@@ -431,10 +431,48 @@ class StockifyAPITester:
         self.test_get_single_article()
         self.test_update_article()
         
+        # Article pagination, search, and filter tests
+        self.test_articles_pagination()
+        self.test_articles_search()
+        self.test_articles_low_stock_filter()
+        self.test_articles_sorting()
+        
         # Request workflow tests
         self.test_create_demande()
         self.test_get_demandes()
         self.test_approve_demande()
+        
+        # Demandes pagination, search, and filter tests
+        self.test_demandes_pagination()
+        self.test_demandes_search()
+        self.test_demandes_status_filter()
+        self.test_demandes_sorting()
+        
+        # Movements tests (admin only)
+        self.test_get_mouvements()
+        self.test_mouvements_pagination()
+        self.test_mouvements_search()
+        self.test_mouvements_type_filter()
+        self.test_mouvements_date_filter()
+        self.test_mouvements_sorting()
+        self.test_user_cannot_access_mouvements()
+        
+        # Dashboard tests
+        self.test_dashboard_stats()
+        self.test_dashboard_alerts()
+        
+        # Cleanup
+        self.test_delete_article()
+        
+        # Print results
+        print(f"\n📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
+        
+        if self.tests_passed == self.tests_run:
+            print("🎉 All tests passed!")
+            return 0
+        else:
+            print(f"❌ {self.tests_run - self.tests_passed} tests failed")
+            return 1
         
     def test_get_mouvements(self):
         """Test getting movements (admin only)"""
