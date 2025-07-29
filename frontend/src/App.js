@@ -1018,108 +1018,264 @@ const DemandesList = ({ user }) => {
 const MouvementsList = ({ user }) => {
   const [mouvements, setMouvements] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Pagination and filtering state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const limit = 10;
 
   useEffect(() => {
     fetchMouvements();
-  }, []);
+  }, [currentPage, searchTerm, typeFilter, dateFrom, dateTo, sortBy, sortOrder]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchMouvements();
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const fetchMouvements = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/mouvements`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
+
+      if (searchTerm) params.append('search', searchTerm);
+      if (typeFilter) params.append('type_filter', typeFilter);
+      if (dateFrom) params.append('date_from', dateFrom);
+      if (dateTo) params.append('date_to', dateTo);
+
+      const response = await axios.get(`${API}/mouvements?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setMouvements(response.data);
+      
+      setMouvements(response.data.items);
+      setTotalPages(response.data.pages);
+      setTotalItems(response.data.total);
     } catch (error) {
       console.error('Error fetching mouvements:', error);
+      setMouvements([]);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const typeOptions = [
+    { value: 'entree', label: 'Entrée' },
+    { value: 'sortie', label: 'Sortie' }
+  ];
+
+  const sortOptions = [
+    { value: 'created_at', label: 'Date de création' },
+    { value: 'quantite', label: 'Quantité' },
+    { value: 'type', label: 'Type' }
+  ];
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Mouvements de Stock</h1>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Total: {mouvements.length} mouvements</span>
+          <span className="text-sm text-gray-600">
+            {totalItems} mouvement{totalItems !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Article
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantité
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Utilisateur
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Raison
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {mouvements.map((mouvement, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(mouvement.created_at).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {mouvement.article_nom || 'Article supprimé'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      mouvement.type === 'entree' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {mouvement.type === 'entree' ? '⬇️ Entrée' : '⬆️ Sortie'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <span className={`font-medium ${
-                      mouvement.type === 'entree' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {mouvement.type === 'entree' ? '+' : '-'}{mouvement.quantite}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {mouvement.user_nom || 'Utilisateur supprimé'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {mouvement.raison}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {mouvements.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">📊</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun mouvement</h3>
-              <p className="text-gray-500">Les mouvements de stock apparaîtront ici.</p>
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-lg">
+        <div className="flex flex-col gap-4">
+          {/* Search and Type filter */}
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <SearchBar 
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              placeholder="Rechercher des mouvements..."
+            />
+            
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <FilterSelect
+                value={typeFilter}
+                onChange={setTypeFilter}
+                options={typeOptions}
+                placeholder="Filtrer par type"
+                className="w-full sm:w-auto"
+              />
+              
+              <FilterSelect
+                value={sortBy}
+                onChange={setSortBy}
+                options={sortOptions}
+                placeholder="Trier par"
+                className="w-full sm:w-auto"
+              />
+              
+              <FilterSelect
+                value={sortOrder}
+                onChange={setSortOrder}
+                options={[
+                  { value: 'asc', label: 'Croissant' },
+                  { value: 'desc', label: 'Décroissant' }
+                ]}
+                placeholder="Ordre"
+                className="w-full sm:w-auto"
+              />
             </div>
-          )}
+          </div>
+          
+          {/* Date range filters */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <label className="text-sm text-gray-600 whitespace-nowrap">Date de:</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <label className="text-sm text-gray-600 whitespace-nowrap">Date à:</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Réinitialiser dates
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <div className="mt-3 text-sm text-gray-600">
+          {totalItems} mouvement{totalItems !== 1 ? 's' : ''} trouvé{totalItems !== 1 ? 's' : ''}
         </div>
       </div>
+
+      {/* Table */}
+      {loading ? (
+        <LoadingSpinner />
+      ) : mouvements.length > 0 ? (
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Article
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantité
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Utilisateur
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Raison
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {mouvements.map((mouvement, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(mouvement.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {mouvement.article_nom || 'Article supprimé'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        mouvement.type === 'entree' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {mouvement.type === 'entree' ? '⬇️ Entrée' : '⬆️ Sortie'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className={`font-medium ${
+                        mouvement.type === 'entree' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {mouvement.type === 'entree' ? '+' : '-'}{mouvement.quantite}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {mouvement.user_nom || 'Utilisateur supprimé'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {mouvement.raison}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            totalItems={totalItems}
+            limit={limit}
+          />
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">📊</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun mouvement trouvé</h3>
+          <p className="text-gray-500">
+            {searchTerm ? 
+              `Aucun mouvement ne correspond à votre recherche "${searchTerm}".` :
+              "Les mouvements de stock apparaîtront ici."
+            }
+          </p>
+        </div>
+      )}
     </div>
   );
 };
