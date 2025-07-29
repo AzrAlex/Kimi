@@ -239,6 +239,17 @@ const ArticlesList = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingArticle, setEditingArticle] = useState(null);
+  
+  // Pagination and filtering state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [lowStockFilter, setLowStockFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const limit = 9; // 3x3 grid
+  
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
@@ -250,17 +261,44 @@ const ArticlesList = ({ user }) => {
 
   useEffect(() => {
     fetchArticles();
-  }, []);
+  }, [currentPage, searchTerm, lowStockFilter, sortBy, sortOrder]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchArticles();
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const fetchArticles = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/articles`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
+
+      if (searchTerm) params.append('search', searchTerm);
+      if (lowStockFilter) params.append('low_stock', lowStockFilter);
+
+      const response = await axios.get(`${API}/articles?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setArticles(response.data);
+      
+      setArticles(response.data.items);
+      setTotalPages(response.data.pages);
+      setTotalItems(response.data.total);
     } catch (error) {
       console.error('Error fetching articles:', error);
+      setArticles([]);
     } finally {
       setLoading(false);
     }
@@ -339,11 +377,26 @@ const ArticlesList = ({ user }) => {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const filterOptions = [
+    { value: 'true', label: 'Stock faible uniquement' },
+    { value: 'false', label: 'Stock normal uniquement' }
+  ];
+
+  const sortOptions = [
+    { value: 'nom', label: 'Nom' },
+    { value: 'quantite', label: 'Quantité' },
+    { value: 'created_at', label: 'Date de création' },
+    { value: 'updated_at', label: 'Dernière modification' }
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-800">Gestion des Articles</h1>
         {user?.role === 'admin' && (
           <button
@@ -355,66 +408,135 @@ const ArticlesList = ({ user }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {articles.map((article) => (
-          <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-bold text-gray-800">{article.nom}</h3>
-                {user?.role === 'admin' && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(article)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handleDelete(article.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                )}
-              </div>
-              
-              <p className="text-gray-600 mb-4">{article.description}</p>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Quantité:</span>
-                  <span className={`font-bold ${article.quantite <= article.quantite_min ? 'text-red-600' : 'text-green-600'}`}>
-                    {article.quantite}
-                  </span>
+      {/* Search and Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-lg">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <SearchBar 
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            placeholder="Rechercher des articles..."
+          />
+          
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <FilterSelect
+              value={lowStockFilter}
+              onChange={setLowStockFilter}
+              options={filterOptions}
+              placeholder="Filtrer par stock"
+              className="w-full sm:w-auto"
+            />
+            
+            <FilterSelect
+              value={sortBy}
+              onChange={setSortBy}
+              options={sortOptions}
+              placeholder="Trier par"
+              className="w-full sm:w-auto"
+            />
+            
+            <FilterSelect
+              value={sortOrder}
+              onChange={setSortOrder}
+              options={[
+                { value: 'asc', label: 'Croissant' },
+                { value: 'desc', label: 'Décroissant' }
+              ]}
+              placeholder="Ordre"
+              className="w-full sm:w-auto"
+            />
+          </div>
+        </div>
+        
+        <div className="mt-3 text-sm text-gray-600">
+          {totalItems} article{totalItems !== 1 ? 's' : ''} trouvé{totalItems !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {/* Articles Grid */}
+      {loading ? (
+        <LoadingSpinner />
+      ) : articles.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {articles.map((article) => (
+            <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">{article.nom}</h3>
+                  {user?.role === 'admin' && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(article)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDelete(article.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Minimum:</span>
-                  <span className="font-medium">{article.quantite_min}</span>
-                </div>
-                {article.date_expiration && (
+                
+                <p className="text-gray-600 mb-4">{article.description}</p>
+                
+                <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">Expiration:</span>
-                    <span className="font-medium text-sm">
-                      {new Date(article.date_expiration).toLocaleDateString()}
+                    <span className="text-sm text-gray-500">Quantité:</span>
+                    <span className={`font-bold ${article.quantite <= article.quantite_min ? 'text-red-600' : 'text-green-600'}`}>
+                      {article.quantite}
                     </span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">Minimum:</span>
+                    <span className="font-medium">{article.quantite_min}</span>
+                  </div>
+                  {article.date_expiration && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Expiration:</span>
+                      <span className="font-medium text-sm">
+                        {new Date(article.date_expiration).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {article.code_qr && (
+                  <div className="mt-4 text-center">
+                    <img 
+                      src={article.code_qr} 
+                      alt="QR Code" 
+                      className="mx-auto w-20 h-20 border rounded"
+                    />
+                  </div>
                 )}
               </div>
-              
-              {article.code_qr && (
-                <div className="mt-4 text-center">
-                  <img 
-                    src={article.code_qr} 
-                    alt="QR Code" 
-                    className="mx-auto w-20 h-20 border rounded"
-                  />
-                </div>
-              )}
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">📦</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun article trouvé</h3>
+          <p className="text-gray-500">
+            {searchTerm ? 
+              `Aucun article ne correspond à votre recherche "${searchTerm}".` :
+              "Commencez par ajouter des articles à votre stock."
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        totalItems={totalItems}
+        limit={limit}
+      />
 
       {/* Modal for adding/editing articles */}
       <Modal 
