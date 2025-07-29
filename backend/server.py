@@ -441,13 +441,37 @@ async def delete_article(article_id: str, current_user: User = Depends(get_admin
     return {"message": "Article deleted successfully"}
 
 # Demandes routes
-@api_router.get("/demandes", response_model=List[DemandeResponse])
-async def get_demandes(current_user: User = Depends(get_current_user)):
+@api_router.get("/demandes")
+async def get_demandes(
+    current_user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search term"),
+    status: Optional[DemandeStatus] = Query(None, description="Filter by status"),
+    sort_by: Optional[str] = Query("date_demande", description="Sort field"),
+    sort_order: Optional[str] = Query("desc", description="Sort order (asc/desc)")
+):
+    # Build base query
     query = {}
     if current_user.role == UserRole.USER:
-        query = {"user_id": current_user.id}
+        query["user_id"] = current_user.id
     
-    demandes = await db.demandes.find(query).to_list(1000)
+    # Status filter
+    if status:
+        query["statut"] = status
+    
+    # Get total count
+    total = await db.demandes.count_documents(query)
+    
+    # Calculate pagination
+    skip = (page - 1) * limit
+    pages = (total + limit - 1) // limit
+    
+    # Sort order
+    sort_direction = 1 if sort_order == "asc" else -1
+    
+    # Get demandes with pagination
+    demandes = await db.demandes.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
     
     # Enrich with user and article names
     for demande in demandes:
@@ -456,7 +480,24 @@ async def get_demandes(current_user: User = Depends(get_current_user)):
         demande["user_nom"] = user["nom"] if user else None
         demande["article_nom"] = article["nom"] if article else None
     
-    return [DemandeResponse(**demande) for demande in demandes]
+    # Filter by search term after enrichment
+    if search:
+        demandes = [
+            d for d in demandes 
+            if search.lower() in (d.get("article_nom", "") or "").lower() 
+            or search.lower() in (d.get("user_nom", "") or "").lower()
+        ]
+        # Recalculate totals for search
+        total = len(demandes)
+        pages = (total + limit - 1) // limit
+    
+    return {
+        "items": [DemandeResponse(**demande).dict() for demande in demandes],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": pages
+    }
 
 @api_router.post("/demandes", response_model=DemandeResponse)
 async def create_demande(demande_data: DemandeCreate, current_user: User = Depends(get_current_user)):
