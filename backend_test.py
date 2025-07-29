@@ -166,16 +166,70 @@ class StockifyAPITester:
             return self.log_test("Create Article", False, str(result))
 
     def test_get_articles(self):
-        """Test getting all articles"""
+        """Test getting all articles with new pagination format"""
         if not self.admin_token:
             return self.log_test("Get Articles", False, "No admin token")
         
         success, result = self.make_request('GET', 'articles', token=self.admin_token)
         
-        if success and isinstance(result, list):
+        if success and isinstance(result, dict) and 'items' in result and 'total' in result:
             return self.log_test("Get Articles", True)
         else:
             return self.log_test("Get Articles", False, str(result))
+
+    def test_articles_pagination(self):
+        """Test articles pagination parameters"""
+        if not self.admin_token:
+            return self.log_test("Articles Pagination", False, "No admin token")
+        
+        # Test with different page sizes
+        success, result = self.make_request('GET', 'articles?page=1&limit=5', token=self.admin_token)
+        
+        if success and result.get('limit') == 5 and result.get('page') == 1:
+            return self.log_test("Articles Pagination", True)
+        else:
+            return self.log_test("Articles Pagination", False, str(result))
+
+    def test_articles_search(self):
+        """Test articles search functionality"""
+        if not self.admin_token:
+            return self.log_test("Articles Search", False, "No admin token")
+        
+        # Test search by name
+        success, result = self.make_request('GET', 'articles?search=Test', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Articles Search", True)
+        else:
+            return self.log_test("Articles Search", False, str(result))
+
+    def test_articles_low_stock_filter(self):
+        """Test articles low stock filter"""
+        if not self.admin_token:
+            return self.log_test("Articles Low Stock Filter", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'articles?low_stock=true', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Articles Low Stock Filter", True)
+        else:
+            return self.log_test("Articles Low Stock Filter", False, str(result))
+
+    def test_articles_sorting(self):
+        """Test articles sorting functionality"""
+        if not self.admin_token:
+            return self.log_test("Articles Sorting", False, "No admin token")
+        
+        # Test sorting by name ascending
+        success, result = self.make_request('GET', 'articles?sort_by=nom&sort_order=asc', token=self.admin_token)
+        
+        if success and 'items' in result:
+            # Test sorting by quantity descending
+            success2, result2 = self.make_request('GET', 'articles?sort_by=quantite&sort_order=desc', token=self.admin_token)
+            if success2 and 'items' in result2:
+                return self.log_test("Articles Sorting", True)
+        
+        return self.log_test("Articles Sorting", False, str(result))
 
     def test_get_single_article(self):
         """Test getting a single article"""
