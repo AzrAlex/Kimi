@@ -660,6 +660,17 @@ const DemandesList = ({ user }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  
+  // Pagination and filtering state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('date_demande');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const limit = 10;
+  
   const [formData, setFormData] = useState({
     article_id: '',
     quantite_demandee: ''
@@ -668,17 +679,44 @@ const DemandesList = ({ user }) => {
   useEffect(() => {
     fetchDemandes();
     fetchArticles();
-  }, []);
+  }, [currentPage, searchTerm, statusFilter, sortBy, sortOrder]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchDemandes();
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const fetchDemandes = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/demandes`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
+
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter) params.append('status', statusFilter);
+
+      const response = await axios.get(`${API}/demandes?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDemandes(response.data);
+      
+      setDemandes(response.data.items);
+      setTotalPages(response.data.pages);
+      setTotalItems(response.data.total);
     } catch (error) {
       console.error('Error fetching demandes:', error);
+      setDemandes([]);
     } finally {
       setLoading(false);
     }
@@ -687,10 +725,10 @@ const DemandesList = ({ user }) => {
   const fetchArticles = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/articles`, {
+      const response = await axios.get(`${API}/articles?limit=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setArticles(response.data);
+      setArticles(response.data.items || response.data);
     } catch (error) {
       console.error('Error fetching articles:', error);
     }
