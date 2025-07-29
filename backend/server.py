@@ -278,11 +278,59 @@ async def login(user_data: UserLogin):
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(**current_user.dict())
 
+# Pagination response model
+class PaginatedResponse(BaseModel):
+    items: List[dict]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
 # Articles routes
-@api_router.get("/articles", response_model=List[ArticleResponse])
-async def get_articles(current_user: User = Depends(get_current_user)):
-    articles = await db.articles.find().to_list(1000)
-    return [ArticleResponse(**article) for article in articles]
+@api_router.get("/articles")
+async def get_articles(
+    current_user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search term"),
+    sort_by: Optional[str] = Query("created_at", description="Sort field"),
+    sort_order: Optional[str] = Query("desc", description="Sort order (asc/desc)"),
+    low_stock: Optional[bool] = Query(None, description="Filter low stock items")
+):
+    # Build query
+    query = {}
+    
+    # Search functionality
+    if search:
+        query["$or"] = [
+            {"nom": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Low stock filter
+    if low_stock is not None and low_stock:
+        query["$expr"] = {"$lte": ["$quantite", "$quantite_min"]}
+    
+    # Get total count
+    total = await db.articles.count_documents(query)
+    
+    # Calculate pagination
+    skip = (page - 1) * limit
+    pages = (total + limit - 1) // limit
+    
+    # Sort order
+    sort_direction = 1 if sort_order == "asc" else -1
+    
+    # Get articles with pagination
+    articles = await db.articles.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
+    
+    return {
+        "items": [ArticleResponse(**article).dict() for article in articles],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": pages
+    }
 
 @api_router.post("/articles", response_model=ArticleResponse)
 async def create_article(
