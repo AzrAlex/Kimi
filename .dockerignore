@@ -1,0 +1,58 @@
+# Docker ignore file for Stockify
+
+# Git
+.git
+.gitignore
+
+# Docker files
+**/Dockerfile*
+**/docker-compose*
+
+# Node modules
+node_modules
+**/node_modules
+
+# Python cache
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv
+env
+.venv
+.env
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Coverage
+coverage
+.coverage
+.nyc_output
+
+# Test files
+.pytest_cache
+test-results
+
+# Build artifacts
+build
+dist
+*.egg-info
+
+# Uploads (will be handled by volumes)
+uploads
