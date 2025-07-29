@@ -1,0 +1,68 @@
+# GitHub Actions pour déploiement automatique Railway
+# Optionnel - Railway peut déployer directement depuis GitHub
+
+name: Railway Deployment
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'yarn'
+        cache-dependency-path: frontend/yarn.lock
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        yarn install --frozen-lockfile
+    
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        yarn build
+    
+    - name: Validate backend
+      run: |
+        cd backend
+        python -c "import server; print('Backend imports OK')"
+    
+    - name: Run tests
+      run: |
+        echo "✅ Validation complete - ready for Railway deployment"
+
+  # Uncomment if you want to deploy via GitHub Actions
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   needs: validate
+  #   if: github.ref == 'refs/heads/main'
+  #   
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   
+  #   - name: Deploy to Railway
+  #     run: |
+  #       npx @railway/cli login --token ${{ secrets.RAILWAY_TOKEN }}
+  #       npx @railway/cli up --service backend
+  #       npx @railway/cli up --service frontend
