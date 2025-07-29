@@ -572,8 +572,45 @@ async def reject_demande(demande_id: str, current_user: User = Depends(get_admin
 
 # Mouvements routes
 @api_router.get("/mouvements")
-async def get_mouvements(current_user: User = Depends(get_admin_user)):
-    mouvements = await db.mouvements.find().sort("created_at", -1).to_list(1000)
+async def get_mouvements(
+    current_user: User = Depends(get_admin_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(10, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search term"),
+    type_filter: Optional[MouvementType] = Query(None, description="Filter by movement type"),
+    date_from: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
+    sort_by: Optional[str] = Query("created_at", description="Sort field"),
+    sort_order: Optional[str] = Query("desc", description="Sort order (asc/desc)")
+):
+    # Build query
+    query = {}
+    
+    # Type filter
+    if type_filter:
+        query["type"] = type_filter
+    
+    # Date range filter
+    if date_from or date_to:
+        date_query = {}
+        if date_from:
+            date_query["$gte"] = datetime.fromisoformat(date_from)
+        if date_to:
+            date_query["$lte"] = datetime.fromisoformat(date_to + "T23:59:59")
+        query["created_at"] = date_query
+    
+    # Get total count
+    total = await db.mouvements.count_documents(query)
+    
+    # Calculate pagination
+    skip = (page - 1) * limit
+    pages = (total + limit - 1) // limit
+    
+    # Sort order
+    sort_direction = 1 if sort_order == "asc" else -1
+    
+    # Get mouvements with pagination
+    mouvements = await db.mouvements.find(query).sort(sort_by, sort_direction).skip(skip).limit(limit).to_list(limit)
     
     # Enrich with article and user names
     for mouvement in mouvements:
@@ -582,7 +619,25 @@ async def get_mouvements(current_user: User = Depends(get_admin_user)):
         mouvement["article_nom"] = article["nom"] if article else None
         mouvement["user_nom"] = user["nom"] if user else None
     
-    return mouvements
+    # Filter by search term after enrichment
+    if search:
+        mouvements = [
+            m for m in mouvements 
+            if search.lower() in (m.get("article_nom", "") or "").lower() 
+            or search.lower() in (m.get("user_nom", "") or "").lower()
+            or search.lower() in (m.get("raison", "") or "").lower()
+        ]
+        # Recalculate totals for search
+        total = len(mouvements)
+        pages = (total + limit - 1) // limit
+    
+    return {
+        "items": mouvements,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": pages
+    }
 
 @api_router.post("/mouvements")
 async def create_mouvement(mouvement_data: MouvementCreate, current_user: User = Depends(get_admin_user)):
