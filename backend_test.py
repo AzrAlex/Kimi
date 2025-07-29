@@ -436,9 +436,89 @@ class StockifyAPITester:
         self.test_get_demandes()
         self.test_approve_demande()
         
-        # Dashboard tests
-        self.test_dashboard_stats()
-        self.test_dashboard_alerts()
+    def test_get_mouvements(self):
+        """Test getting movements (admin only)"""
+        if not self.admin_token:
+            return self.log_test("Get Mouvements", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'mouvements', token=self.admin_token)
+        
+        if success and isinstance(result, dict) and 'items' in result and 'total' in result:
+            return self.log_test("Get Mouvements", True)
+        else:
+            return self.log_test("Get Mouvements", False, str(result))
+
+    def test_mouvements_pagination(self):
+        """Test mouvements pagination parameters"""
+        if not self.admin_token:
+            return self.log_test("Mouvements Pagination", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'mouvements?page=1&limit=5', token=self.admin_token)
+        
+        if success and result.get('limit') == 5 and result.get('page') == 1:
+            return self.log_test("Mouvements Pagination", True)
+        else:
+            return self.log_test("Mouvements Pagination", False, str(result))
+
+    def test_mouvements_search(self):
+        """Test mouvements search functionality"""
+        if not self.admin_token:
+            return self.log_test("Mouvements Search", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'mouvements?search=Test', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Mouvements Search", True)
+        else:
+            return self.log_test("Mouvements Search", False, str(result))
+
+    def test_mouvements_type_filter(self):
+        """Test mouvements type filter"""
+        if not self.admin_token:
+            return self.log_test("Mouvements Type Filter", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'mouvements?type_filter=entree', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Mouvements Type Filter", True)
+        else:
+            return self.log_test("Mouvements Type Filter", False, str(result))
+
+    def test_mouvements_date_filter(self):
+        """Test mouvements date range filter"""
+        if not self.admin_token:
+            return self.log_test("Mouvements Date Filter", False, "No admin token")
+        
+        # Test with date range
+        from_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        to_date = datetime.now().strftime('%Y-%m-%d')
+        
+        success, result = self.make_request('GET', f'mouvements?date_from={from_date}&date_to={to_date}', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Mouvements Date Filter", True)
+        else:
+            return self.log_test("Mouvements Date Filter", False, str(result))
+
+    def test_mouvements_sorting(self):
+        """Test mouvements sorting functionality"""
+        if not self.admin_token:
+            return self.log_test("Mouvements Sorting", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'mouvements?sort_by=created_at&sort_order=asc', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Mouvements Sorting", True)
+        else:
+            return self.log_test("Mouvements Sorting", False, str(result))
+
+    def test_user_cannot_access_mouvements(self):
+        """Test that regular users cannot access movements"""
+        if not self.user_token:
+            return self.log_test("User Cannot Access Mouvements", False, "No user token")
+        
+        success, result = self.make_request('GET', 'mouvements', token=self.user_token, expected_status=403)
+        return self.log_test("User Cannot Access Mouvements (should fail)", success)
         
         # Cleanup
         self.test_delete_article()
