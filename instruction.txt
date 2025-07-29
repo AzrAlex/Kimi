@@ -1,0 +1,494 @@
+# STOCKIFY - Instructions de Déploiement
+======================================
+
+## 📋 Vue d'ensemble
+Stockify est une application de gestion de stock full-stack composée de:
+- **Frontend**: React + Tailwind CSS
+- **Backend**: FastAPI (Python)
+- **Base de données**: MongoDB
+- **Fonctionnalités**: Authentification, gestion d'articles, demandes, mouvements, rapports avec pagination, recherche et filtres
+
+## 🔧 Prérequis
+
+### Environnement de développement
+- Python 3.11+
+- Node.js 16+ et Yarn
+- MongoDB 4.4+
+- Git
+
+### Environnement de production
+- Serveur Linux (Ubuntu 20.04+ recommandé)
+- Docker et Docker Compose (optionnel)
+- Nginx (pour proxy inverse)
+- SSL/TLS certificat (Let's Encrypt recommandé)
+
+## 🚀 Déploiement Local (Développement)
+
+### 1. Clonage du projet
+```bash
+git clone <votre-repo-url>
+cd stockify
+```
+
+### 2. Configuration MongoDB
+```bash
+# Installation MongoDB (Ubuntu)
+sudo apt update
+sudo apt install -y mongodb
+
+# Démarrer MongoDB
+sudo systemctl start mongodb
+sudo systemctl enable mongodb
+
+# Vérifier le status
+sudo systemctl status mongodb
+```
+
+### 3. Configuration Backend
+```bash
+cd backend
+
+# Créer environnement virtuel
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou
+venv\Scripts\activate     # Windows
+
+# Installer dépendances
+pip install -r requirements.txt
+
+# Créer fichier .env
+cat > .env << EOF
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=stockify_db
+EOF
+```
+
+### 4. Configuration Frontend
+```bash
+cd frontend
+
+# Installer dépendances
+yarn install
+
+# Créer fichier .env
+cat > .env << EOF
+REACT_APP_BACKEND_URL=http://localhost:8001
+EOF
+```
+
+### 5. Initialisation des données
+```bash
+# Depuis la racine du projet
+python create_test_data.py
+```
+
+### 6. Lancement des services
+
+#### Backend
+```bash
+cd backend
+source venv/bin/activate
+uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+```
+
+#### Frontend
+```bash
+cd frontend
+yarn start
+```
+
+L'application sera accessible à:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8001
+- Documentation API: http://localhost:8001/docs
+
+## 🌐 Déploiement Production
+
+### Option 1: Déploiement Docker (Recommandé)
+
+#### 1. Dockerfile Backend
+```dockerfile
+# backend/Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8001
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]
+```
+
+#### 2. Dockerfile Frontend
+```dockerfile
+# frontend/Dockerfile
+FROM node:18-alpine as build
+
+WORKDIR /app
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
+
+COPY . .
+RUN yarn build
+
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+#### 3. Docker Compose
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:4.4
+    container_name: stockify_mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: stockify_db
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build: ./backend
+    container_name: stockify_backend
+    restart: always
+    environment:
+      MONGO_URL: mongodb://mongodb:27017
+      DB_NAME: stockify_db
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+
+  frontend:
+    build: ./frontend
+    container_name: stockify_frontend
+    restart: always
+    environment:
+      REACT_APP_BACKEND_URL: https://votre-domaine.com
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
+```
+
+#### 4. Déploiement
+```bash
+# Construire et lancer
+docker-compose up -d
+
+# Initialiser les données
+docker exec stockify_backend python create_test_data.py
+```
+
+### Option 2: Déploiement Serveur Traditional
+
+#### 1. Préparation serveur
+```bash
+# Mise à jour système
+sudo apt update && sudo apt upgrade -y
+
+# Installation dépendances
+sudo apt install -y python3 python3-pip python3-venv nodejs npm nginx mongodb
+
+# Installation Yarn
+npm install -g yarn
+
+# Installation PM2 pour gestion processus
+npm install -g pm2
+```
+
+#### 2. Déploiement Backend
+```bash
+# Cloner projet
+git clone <votre-repo> /var/www/stockify
+cd /var/www/stockify/backend
+
+# Configuration Python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Configuration environnement
+cat > .env << EOF
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=stockify_prod
+EOF
+
+# Configuration PM2
+cat > ecosystem.config.js << EOF
+module.exports = {
+  apps: [{
+    name: 'stockify-backend',
+    cwd: '/var/www/stockify/backend',
+    script: '/var/www/stockify/backend/venv/bin/uvicorn',
+    args: 'server:app --host 0.0.0.0 --port 8001',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G'
+  }]
+};
+EOF
+
+# Lancer backend
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+#### 3. Déploiement Frontend
+```bash
+cd /var/www/stockify/frontend
+
+# Configuration environnement production
+cat > .env << EOF
+REACT_APP_BACKEND_URL=https://votre-domaine.com
+EOF
+
+# Build production
+yarn install
+yarn build
+
+# Copier vers nginx
+sudo cp -r build/* /var/www/html/
+```
+
+#### 4. Configuration Nginx
+```nginx
+# /etc/nginx/sites-available/stockify
+server {
+    listen 80;
+    server_name votre-domaine.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name votre-domaine.com;
+
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
+
+    # Frontend
+    location / {
+        root /var/www/html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API
+    location /api {
+        proxy_pass http://localhost:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Uploads statiques
+    location /uploads {
+        proxy_pass http://localhost:8001;
+    }
+}
+```
+
+```bash
+# Activer site
+sudo ln -s /etc/nginx/sites-available/stockify /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+## 🔐 Configuration SSL avec Let's Encrypt
+
+```bash
+# Installation Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtenir certificat
+sudo certbot --nginx -d votre-domaine.com
+
+# Auto-renouvellement
+sudo crontab -e
+# Ajouter: 0 12 * * * /usr/bin/certbot renew --quiet
+```
+
+## 🗄️ Sauvegarde et Restauration
+
+### Sauvegarde MongoDB
+```bash
+# Créer sauvegarde
+mongodump --db stockify_prod --out /backup/$(date +%Y%m%d)
+
+# Script automatique
+cat > /usr/local/bin/backup-stockify.sh << 'EOF'
+#!/bin/bash
+BACKUP_DIR="/backup"
+DATE=$(date +%Y%m%d_%H%M%S)
+mkdir -p $BACKUP_DIR
+mongodump --db stockify_prod --out $BACKUP_DIR/stockify_$DATE
+find $BACKUP_DIR -type d -mtime +7 -exec rm -rf {} +
+EOF
+
+chmod +x /usr/local/bin/backup-stockify.sh
+
+# Cron quotidien
+echo "0 2 * * * /usr/local/bin/backup-stockify.sh" | sudo crontab -
+```
+
+### Restauration
+```bash
+mongorestore --db stockify_prod /backup/chemin-vers-sauvegarde/stockify_prod
+```
+
+## 🔧 Maintenance et Monitoring
+
+### Logs
+```bash
+# Logs PM2
+pm2 logs stockify-backend
+
+# Logs Nginx
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+
+# Logs MongoDB
+sudo tail -f /var/log/mongodb/mongod.log
+```
+
+### Monitoring
+```bash
+# Status services
+pm2 status
+sudo systemctl status nginx
+sudo systemctl status mongodb
+
+# Ressources système
+htop
+df -h
+free -h
+```
+
+### Mise à jour
+```bash
+# Backend
+cd /var/www/stockify/backend
+git pull
+source venv/bin/activate
+pip install -r requirements.txt
+pm2 restart stockify-backend
+
+# Frontend
+cd /var/www/stockify/frontend
+git pull
+yarn install
+yarn build
+sudo cp -r build/* /var/www/html/
+```
+
+## 🚨 Dépannage
+
+### Problèmes courants
+
+#### Backend ne démarre pas
+```bash
+# Vérifier logs
+pm2 logs stockify-backend
+
+# Vérifier MongoDB
+sudo systemctl status mongodb
+
+# Vérifier variables environnement
+cat backend/.env
+```
+
+#### Frontend ne charge pas
+```bash
+# Vérifier build
+cd frontend && yarn build
+
+# Vérifier Nginx
+sudo nginx -t
+sudo systemctl status nginx
+
+# Vérifier permissions
+sudo chown -R www-data:www-data /var/www/html/
+```
+
+#### Problèmes de connexion MongoDB
+```bash
+# Tester connexion
+mongo --eval "db.adminCommand('ismaster')"
+
+# Vérifier configuration
+sudo cat /etc/mongod.conf
+
+# Redémarrer service
+sudo systemctl restart mongodb
+```
+
+## 🔒 Sécurité
+
+### Recommandations production
+1. **Firewall**: Ouvrir seulement ports 80, 443, 22
+2. **MongoDB**: Désactiver accès externe, activer authentification
+3. **SSL/TLS**: Utiliser certificates valides
+4. **Secrets**: Utiliser variables environnement sécurisées
+5. **Backups**: Chiffrer et stocker hors site
+6. **Updates**: Maintenir système et dépendances à jour
+
+### Configuration MongoDB sécurisée
+```bash
+# Créer utilisateur admin
+mongo
+use admin
+db.createUser({
+  user: "admin",
+  pwd: "motdepasse-complexe",
+  roles: [ { role: "userAdminAnyDatabase", db: "admin" } ]
+})
+
+# Activer authentification dans /etc/mongod.conf
+security:
+  authorization: enabled
+```
+
+## 📞 Support
+
+### Comptes de démonstration
+- **Admin**: admin@stockify.com / admin123
+- **Utilisateur**: user@stockify.com / user123
+
+### Fonctionnalités principales
+- ✅ Authentification JWT
+- ✅ Gestion articles avec QR codes
+- ✅ Système de demandes d'articles
+- ✅ Suivi mouvements stock
+- ✅ Rapports et analyses
+- ✅ Recherche et filtres avancés
+- ✅ Pagination responsive
+- ✅ Interface mobile-friendly
+
+Pour assistance technique, consulter:
+- Documentation API: /docs (endpoint backend)
+- Logs application
+- Status des services
+
+======================================
+Stockify v1.0 - Système de Gestion de Stock
+Développé avec React + FastAPI + MongoDB
