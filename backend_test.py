@@ -281,16 +281,64 @@ class StockifyAPITester:
             return self.log_test("Create Demande", False, str(result))
 
     def test_get_demandes(self):
-        """Test getting requests"""
+        """Test getting requests with new pagination format"""
         if not self.admin_token:
             return self.log_test("Get Demandes", False, "No admin token")
         
         success, result = self.make_request('GET', 'demandes', token=self.admin_token)
         
-        if success and isinstance(result, list):
+        if success and isinstance(result, dict) and 'items' in result and 'total' in result:
             return self.log_test("Get Demandes", True)
         else:
             return self.log_test("Get Demandes", False, str(result))
+
+    def test_demandes_pagination(self):
+        """Test demandes pagination parameters"""
+        if not self.admin_token:
+            return self.log_test("Demandes Pagination", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'demandes?page=1&limit=5', token=self.admin_token)
+        
+        if success and result.get('limit') == 5 and result.get('page') == 1:
+            return self.log_test("Demandes Pagination", True)
+        else:
+            return self.log_test("Demandes Pagination", False, str(result))
+
+    def test_demandes_search(self):
+        """Test demandes search functionality"""
+        if not self.admin_token:
+            return self.log_test("Demandes Search", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'demandes?search=Test', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Demandes Search", True)
+        else:
+            return self.log_test("Demandes Search", False, str(result))
+
+    def test_demandes_status_filter(self):
+        """Test demandes status filter"""
+        if not self.admin_token:
+            return self.log_test("Demandes Status Filter", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'demandes?status=pending', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Demandes Status Filter", True)
+        else:
+            return self.log_test("Demandes Status Filter", False, str(result))
+
+    def test_demandes_sorting(self):
+        """Test demandes sorting functionality"""
+        if not self.admin_token:
+            return self.log_test("Demandes Sorting", False, "No admin token")
+        
+        success, result = self.make_request('GET', 'demandes?sort_by=date_demande&sort_order=asc', token=self.admin_token)
+        
+        if success and 'items' in result:
+            return self.log_test("Demandes Sorting", True)
+        else:
+            return self.log_test("Demandes Sorting", False, str(result))
 
     def test_approve_demande(self):
         """Test approving a request (admin)"""
