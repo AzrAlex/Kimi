@@ -1,0 +1,99 @@
+# Railway ignore file - optimizes deployment
+# Similar to .dockerignore but specifically for Railway
+
+# Git and version control
+.git
+.gitignore
+
+# Local development files
+.env.local
+.env.development
+docker-compose*.yml
+Dockerfile
+!Dockerfile.railway
+
+# Node modules (will be installed during build)
+node_modules
+**/node_modules
+
+# Python cache and virtual environments
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+env
+.venv
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artifacts (will be built on Railway)
+build
+dist
+out
+.next
+*.egg-info
+
+# Test files and coverage
+test-results
+coverage
+.coverage
+.nyc_output
+.pytest_cache
+jest-results.xml
+
+# Documentation and markdown (except Railway specific)
+*.md
+!README-Railway.md
+docs/
+documentation/
+
+# Local development scripts
+docker-test.sh
+start-docker.sh
+validate-setup.sh
+
+# Logs
+*.log
+logs/
+log/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+.tmp
+
+# Package lock files (Railway will generate)
+package-lock.json
+yarn-error.log
+
+# Local uploads (will use Railway volumes)
+uploads/
+public/uploads/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files (will be set via Railway dashboard)
+.env
+.env.production
+.env.development
